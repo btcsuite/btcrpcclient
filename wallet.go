@@ -2003,7 +2003,7 @@ func (r FutureImportPrivKeyLabelResult) Receive() error {
 // result of the RPC at some future time by invoking the Receive function on the
 // returned instance.
 //
-// See ImportPrivKey for the blocking version and more details.
+// See ImportPrivKeyLabel for the blocking version and more details.
 func (c *Client) ImportPrivKeyLabelAsync(privKeyWIF *btcutil.WIF, label string) FutureImportPrivKeyLabelResult {
 	wif := ""
 	if privKeyWIF != nil {
@@ -2045,7 +2045,7 @@ func (r FutureImportPrivKeyRescanResult) Receive() error {
 // result of the RPC at some future time by invoking the Receive function on the
 // returned instance.
 //
-// See ImportPrivKey for the blocking version and more details.
+// See ImportPrivKeyRescan for the blocking version and more details.
 func (c *Client) ImportPrivKeyRescanAsync(privKeyWIF *btcutil.WIF, label string, rescan bool) FutureImportPrivKeyRescanResult {
 	wif := ""
 	if privKeyWIF != nil {
