@@ -1983,28 +1983,12 @@ func (c *Client) ImportPrivKey(privKeyWIF *btcutil.WIF) error {
 	return c.ImportPrivKeyAsync(privKeyWIF).Receive()
 }
 
-// FutureImportPrivKeyLabelResult is a future promise to deliver the result of an
-// ImportPrivKeyAsync RPC invocation (or an applicable error).
-type FutureImportPrivKeyLabelResult chan *futureResult
-
-// Receive waits for the response promised by the future and returns the result
-// of importing the passed private key which must be the wallet import format
-// (WIF).
-func (r FutureImportPrivKeyLabelResult) Receive() error {
-	_, err := receiveFuture(r)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ImportPrivKeyLabelAsync returns an instance of a type that can be used to get the
 // result of the RPC at some future time by invoking the Receive function on the
 // returned instance.
 //
 // See ImportPrivKeyLabel for the blocking version and more details.
-func (c *Client) ImportPrivKeyLabelAsync(privKeyWIF *btcutil.WIF, label string) FutureImportPrivKeyLabelResult {
+func (c *Client) ImportPrivKeyLabelAsync(privKeyWIF *btcutil.WIF, label string) FutureImportPrivKeyResult {
 	wif := ""
 	if privKeyWIF != nil {
 		wif = privKeyWIF.String()
@@ -2025,28 +2009,12 @@ func (c *Client) ImportPrivKeyLabel(privKeyWIF *btcutil.WIF, label string) error
 	return c.ImportPrivKeyLabelAsync(privKeyWIF, label).Receive()
 }
 
-// FutureImportPrivKeyRescanResult is a future promise to deliver the result of an
-// ImportPrivKeyAsync RPC invocation (or an applicable error).
-type FutureImportPrivKeyRescanResult chan *futureResult
-
-// Receive waits for the response promised by the future and returns the result
-// of importing the passed private key which must be the wallet import format
-// (WIF).
-func (r FutureImportPrivKeyRescanResult) Receive() error {
-	_, err := receiveFuture(r)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ImportPrivKeyRescanAsync returns an instance of a type that can be used to get the
 // result of the RPC at some future time by invoking the Receive function on the
 // returned instance.
 //
 // See ImportPrivKeyRescan for the blocking version and more details.
-func (c *Client) ImportPrivKeyRescanAsync(privKeyWIF *btcutil.WIF, label string, rescan bool) FutureImportPrivKeyRescanResult {
+func (c *Client) ImportPrivKeyRescanAsync(privKeyWIF *btcutil.WIF, label string, rescan bool) FutureImportPrivKeyResult {
 	wif := ""
 	if privKeyWIF != nil {
 		wif = privKeyWIF.String()
