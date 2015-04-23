@@ -734,6 +734,15 @@ func (c *Client) notifySpentInternal(outpoints []btcjson.OutPoint) FutureNotifyS
 	return c.sendCmd(cmd)
 }
 
+// newOutPointFromWire creates a new btcjson.OutPoint from the OutPoint
+// structure of the btcwire package.
+func newOutPointFromWire(op *wire.OutPoint) *btcjson.OutPoint {
+	return &btcjson.OutPoint{
+		Hash:  op.Hash.String(),
+		Index: op.Index,
+	}
+}
+
 // NotifySpentAsync returns an instance of a type that can be used to get the
 // result of the RPC at some future time by invoking the Receive function on
 // the returned instance.
@@ -755,7 +764,7 @@ func (c *Client) NotifySpentAsync(outpoints []*wire.OutPoint) FutureNotifySpentR
 
 	ops := make([]btcjson.OutPoint, 0, len(outpoints))
 	for _, outpoint := range outpoints {
-		ops = append(ops, *btcjson.NewOutPointFromWire(outpoint))
+		ops = append(ops, *newOutPointFromWire(outpoint))
 	}
 	cmd := btcjson.NewNotifySpentCmd(ops)
 	return c.sendCmd(cmd)
@@ -970,7 +979,7 @@ func (c *Client) RescanAsync(startBlock *wire.ShaHash,
 	// Convert outpoints.
 	ops := make([]btcjson.OutPoint, 0, len(outpoints))
 	for _, op := range outpoints {
-		ops = append(ops, *btcjson.NewOutPointFromWire(op))
+		ops = append(ops, *newOutPointFromWire(op))
 	}
 
 	cmd := btcjson.NewRescanCmd(startBlockShaStr, addrs, ops, nil)
@@ -1050,7 +1059,7 @@ func (c *Client) RescanEndBlockAsync(startBlock *wire.ShaHash,
 	// Convert outpoints.
 	ops := make([]btcjson.OutPoint, 0, len(outpoints))
 	for _, op := range outpoints {
-		ops = append(ops, *btcjson.NewOutPointFromWire(op))
+		ops = append(ops, *newOutPointFromWire(op))
 	}
 
 	cmd := btcjson.NewRescanCmd(startBlockShaStr, addrs, ops,
