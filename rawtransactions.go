@@ -553,7 +553,7 @@ func (c *Client) SearchRawTransactionsAsync(address btcutil.Address, skip, count
 	addr := address.EncodeAddress()
 	verbose := btcjson.Int(0)
 	cmd := btcjson.NewSearchRawTransactionsCmd(addr, verbose, &skip, &count,
-		nil, &reverse)
+		nil, &reverse, nil)
 	return c.sendCmd(cmd)
 }
 
@@ -606,7 +606,7 @@ func (c *Client) SearchRawTransactionsVerboseAsync(address btcutil.Address, skip
 		prevOut = btcjson.Int(1)
 	}
 	cmd := btcjson.NewSearchRawTransactionsCmd(addr, verbose, &skip, &count,
-		prevOut, &reverse)
+		prevOut, &reverse, nil)
 	return c.sendCmd(cmd)
 }
 
