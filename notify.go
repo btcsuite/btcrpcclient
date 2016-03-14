@@ -403,7 +403,7 @@ func (e wrongNumParams) Error() string {
 func parseChainNtfnParams(params []json.RawMessage) (*wire.ShaHash,
 	int32, time.Time, []wire.MsgTx, error) {
 
-	if len(params) != 3 || len(params) != 4 {
+	if len(params) != 3 && len(params) != 4 {
 		return nil, 0, time.Time{}, nil, wrongNumParams(len(params))
 	}
 
