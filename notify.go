@@ -96,7 +96,7 @@ type NotificationHandlers struct {
 	// (best) chain.  It will only be invoked if a preceding call to
 	// NotifyBlocks has been made to register for the notification and the
 	// function is non-nil.
-	OnBlockConnected func(hash *wire.ShaHash, height int32, t time.Time)
+	OnBlockConnected func(hash *wire.ShaHash, height int32, t time.Time, subscribedTxs []wire.MsgTx)
 
 	// OnBlockDisconnected is invoked when a block is disconnected from the
 	// longest (best) chain.  It will only be invoked if a preceding call to
@@ -105,23 +105,23 @@ type NotificationHandlers struct {
 	OnBlockDisconnected func(hash *wire.ShaHash, height int32, t time.Time)
 
 	// OnRecvTx is invoked when a transaction that receives funds to a
-	// registered address is received into the memory pool and also
-	// connected to the longest (best) chain.  It will only be invoked if a
-	// preceding call to NotifyReceived, Rescan, or RescanEndHeight has been
-	// made to register for the notification and the function is non-nil.
-	OnRecvTx func(transaction *btcutil.Tx, details *btcjson.BlockDetails)
+	// registered address is received into the memory pool or discovered
+	// during a rescan.  It will only be invoked if a preceding call to
+	// NotifyReceived, Rescan, or RescanEndHeight has been made to register
+	// for the notification and the function is non-nil.
+	OnRecvTx func(transaction *btcutil.Tx, rescannedBlock *btcjson.BlockDetails)
 
 	// OnRedeemingTx is invoked when a transaction that spends a registered
-	// outpoint is received into the memory pool and also connected to the
-	// longest (best) chain.  It will only be invoked if a preceding call to
-	// NotifySpent, Rescan, or RescanEndHeight has been made to register for
-	// the notification and the function is non-nil.
+	// outpoint is received into the memory pool or discovered during a
+	// rescan.  It will only be invoked if a preceding call to NotifySpent,
+	// Rescan, or RescanEndHeight has been made to register for the
+	// notification and the function is non-nil.
 	//
 	// NOTE: The NotifyReceived will automatically register notifications
 	// for the outpoints that are now "owned" as a result of receiving
 	// funds to the registered addresses.  This means it is possible for
 	// this to invoked indirectly as the result of a NotifyReceived call.
-	OnRedeemingTx func(transaction *btcutil.Tx, details *btcjson.BlockDetails)
+	OnRedeemingTx func(transaction *btcutil.Tx, rescannedBlock *btcjson.BlockDetails)
 
 	// OnRescanFinished is invoked after a rescan finishes due to a previous
 	// call to Rescan or RescanEndHeight.  Finished rescans should be
@@ -194,14 +194,14 @@ func (c *Client) handleNotification(ntfn *rawNotification) {
 			return
 		}
 
-		blockSha, blockHeight, blockTime, err := parseChainNtfnParams(ntfn.Params)
+		blockSha, blockHeight, blockTime, txs, err := parseChainNtfnParams(ntfn.Params)
 		if err != nil {
 			log.Warnf("Received invalid block connected "+
 				"notification: %v", err)
 			return
 		}
 
-		c.ntfnHandlers.OnBlockConnected(blockSha, blockHeight, blockTime)
+		c.ntfnHandlers.OnBlockConnected(blockSha, blockHeight, blockTime, txs)
 
 	// OnBlockDisconnected
 	case btcjson.BlockDisconnectedNtfnMethod:
@@ -211,7 +211,7 @@ func (c *Client) handleNotification(ntfn *rawNotification) {
 			return
 		}
 
-		blockSha, blockHeight, blockTime, err := parseChainNtfnParams(ntfn.Params)
+		blockSha, blockHeight, blockTime, _, err := parseChainNtfnParams(ntfn.Params)
 		if err != nil {
 			log.Warnf("Received invalid block connected "+
 				"notification: %v", err)
@@ -397,45 +397,70 @@ func (e wrongNumParams) Error() string {
 }
 
 // parseChainNtfnParams parses out the block hash and height from the parameters
-// of blockconnected and blockdisconnected notifications.
+// of blockconnected and blockdisconnected notifications.  For blockdisconnected
+// notifications, which do not contain any subscribed transactions, the returned
+// slice of transactions is always nil.
 func parseChainNtfnParams(params []json.RawMessage) (*wire.ShaHash,
-	int32, time.Time, error) {
+	int32, time.Time, []wire.MsgTx, error) {
 
-	if len(params) != 3 {
-		return nil, 0, time.Time{}, wrongNumParams(len(params))
+	if len(params) != 3 && len(params) != 4 {
+		return nil, 0, time.Time{}, nil, wrongNumParams(len(params))
 	}
 
 	// Unmarshal first parameter as a string.
 	var blockShaStr string
 	err := json.Unmarshal(params[0], &blockShaStr)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, 0, time.Time{}, nil, err
 	}
 
 	// Unmarshal second parameter as an integer.
 	var blockHeight int32
 	err = json.Unmarshal(params[1], &blockHeight)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, 0, time.Time{}, nil, err
 	}
 
 	// Unmarshal third parameter as unix time.
 	var blockTimeUnix int64
 	err = json.Unmarshal(params[2], &blockTimeUnix)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, 0, time.Time{}, nil, err
 	}
 
 	// Create ShaHash from block sha string.
 	blockSha, err := wire.NewShaHashFromStr(blockShaStr)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, 0, time.Time{}, nil, err
 	}
 
 	// Create time.Time from unix time.
 	blockTime := time.Unix(blockTimeUnix, 0)
 
-	return blockSha, blockHeight, blockTime, nil
+	// If a 4th parameter exists, create an array of deserialized
+	// transactions from it.
+	var subscribedTxs []wire.MsgTx
+	if len(params) > 3 {
+		var hexTxs []string
+		err = json.Unmarshal(params[3], &hexTxs)
+		if err != nil {
+			return nil, 0, time.Time{}, nil, err
+		}
+		subscribedTxs = make([]wire.MsgTx, len(hexTxs))
+		for i, hexTx := range hexTxs {
+			serializedTx, err := hex.DecodeString(hexTx)
+			if err != nil {
+				return nil, 0, time.Time{}, nil, err
+			}
+			r := bytes.NewReader(serializedTx)
+			err = subscribedTxs[i].Deserialize(r)
+			if err != nil {
+				return nil, 0, time.Time{}, nil, err
+			}
+		}
+	}
+
+	return blockSha, blockHeight, blockTime, subscribedTxs, nil
 }
 
 // parseChainTxNtfnParams parses out the transaction and optional details about
