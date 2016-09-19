@@ -26,9 +26,11 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/go-socks/socks"
 	"github.com/btcsuite/websocket"
+	"github.com/btcsuite/btcd/chaincfg"
 )
 
 var (
+	NetworkParams *chaincfg.Params = &chaincfg.MainNetParams
 	// ErrInvalidAuth is an error to describe the condition where the client
 	// is either unable to authenticate or the specified endpoint is
 	// incorrect.
@@ -116,6 +118,7 @@ type jsonRequest struct {
 // the returned future will block until the result is available if it's not
 // already.
 type Client struct {
+
 	id uint64 // atomic, so must stay 64-bit aligned
 
 	// config holds the connection configuration assoiated with this client.
@@ -1109,6 +1112,9 @@ type ConnConfig struct {
 	// EnableBCInfoHacks is an option provided to enable compatiblity hacks
 	// when connecting to blockchain.info RPC server
 	EnableBCInfoHacks bool
+
+	// Network Parameters
+	Params *chaincfg.Params
 }
 
 // newHTTPClient returns a new http client that is configured according to the
@@ -1243,6 +1249,10 @@ func New(config *ConnConfig, ntfnHandlers *NotificationHandlers) (*Client, error
 			}
 			start = true
 		}
+	}
+
+	if config.Params != nil {
+		NetworkParams = config.Params
 	}
 
 	client := &Client{
