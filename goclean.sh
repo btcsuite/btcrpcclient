@@ -6,7 +6,7 @@
 # 4. go vet        (http://golang.org/cmd/vet)
 # 5. test coverage (http://blog.golang.org/cover)
 #
-# gometaling (github.com/alecthomas/gometalinter) is used to run each each
+# gometalinter (github.com/alecthomas/gometalinter) is used to run each each
 # static checker.
 
 set -e
@@ -17,7 +17,7 @@ test -z "$(gometalinter --disable-all \
 --enable=golint \
 --enable=vet \
 --enable=goimports \
---deadline=20s ./... | grep -v 'ALL_CAPS\|OP_' 2>&1 | tee /dev/stderr)"
+--deadline=20s ./... | tee /dev/stderr)"
 env GORACE="halt_on_error=1" go test -v -race ./...
 
 # Run test coverage on each subdirectories and merge the coverage profile.
