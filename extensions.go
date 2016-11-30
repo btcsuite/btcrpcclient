@@ -15,6 +15,39 @@ import (
 	"github.com/btcsuite/btcutil"
 )
 
+// FutureAddMiningAddrResult is a future promise to deliver the result of a
+// AddMiningAddr RPC invocation (or an applicable error).
+type FutureAddMiningAddrResult chan *response
+
+// Receive waits for the response promised by the future and returns an error
+// if any occurred when attempting to add the mining address to the set of
+// addresses.
+func (r FutureAddMiningAddrResult) Receive() error {
+	_, err := receiveFuture(r)
+	return err
+}
+
+// AddMiningAddrAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on
+// the returned instance.
+//
+// See AddMiningAddr for the blocking version and more details.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) AddMiningAddrAsync(addr btcutil.Address) FutureAddMiningAddrResult {
+	cmd := btcjson.NewAddMiningAddrCmd(addr.String())
+	return c.sendCmd(cmd)
+}
+
+// AddMiningAddr attempts to add the passed address to the set of mining
+// addresses for btcd. If the address already exists in the set of mining
+// addresses, then an error is returned.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) AddMiningAddr(addr btcutil.Address) error {
+	return c.AddMiningAddrAsync(addr).Receive()
+}
+
 // FutureDebugLevelResult is a future promise to deliver the result of a
 // DebugLevelAsync RPC invocation (or an applicable error).
 type FutureDebugLevelResult chan *response
@@ -97,6 +130,37 @@ func (c *Client) CreateEncryptedWallet(passphrase string) error {
 	return c.CreateEncryptedWalletAsync(passphrase).Receive()
 }
 
+// FutureDelMiningAddrsResult is a future promise to deliver the result of a
+// DelMiningAddr RPC invocation (or an applicable error).
+type FutureDelMiningAddrsResult chan *response
+
+// Receive waits for the response promised by the future and an error if the
+// call attempts to delete a non-existent mining address.
+func (r FutureDelMiningAddrsResult) Receive() error {
+	_, err := receiveFuture(r)
+	return err
+}
+
+// DelMiningAddrAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on
+// the returned instance.
+//
+// See DelMiningAddrAsync for the blocking version and more details.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) DelMiningAddrAsync(addr btcutil.Address) FutureDelMiningAddrsResult {
+	cmd := btcjson.NewDelMiningAddrCmd(addr.String())
+	return c.sendCmd(cmd)
+}
+
+// DelMiningAddr attempts to delete the passed address from btcd's set of
+// mining addresses. If the address cannot be found, then an error is returned.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) DelMiningAddr(addr btcutil.Address) error {
+	return c.DelMiningAddrAsync(addr).Receive()
+}
+
 // FutureListAddressTransactionsResult is a future promise to deliver the result
 // of a ListAddressTransactionsAsync RPC invocation (or an applicable error).
 type FutureListAddressTransactionsResult chan *response
@@ -141,6 +205,47 @@ func (c *Client) ListAddressTransactionsAsync(addresses []btcutil.Address, accou
 // NOTE: This is a btcwallet extension.
 func (c *Client) ListAddressTransactions(addresses []btcutil.Address, account string) ([]btcjson.ListTransactionsResult, error) {
 	return c.ListAddressTransactionsAsync(addresses, account).Receive()
+}
+
+// FutureListMiningAddrsResult is a future promise to deliver the result of a
+// ListMiningAddrs RPC invocation (or an applicable error).
+type FutureListMiningAddrsResult chan *response
+
+// Receive waits for the response promised by the future and returns a list of
+// the current set of mining addresses.
+func (r FutureListMiningAddrsResult) Receive() ([]string, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as a list of strings.
+	var result []string
+	err = json.Unmarshal(res, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// ListMiningAddrsAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on
+// the returned instance.
+//
+// See ListMiningAddrs for the blocking version and more details.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) ListMiningAddrsAsync() FutureListMiningAddrsResult {
+	cmd := btcjson.NewListMiningAddrsCmd()
+	return c.sendCmd(cmd)
+}
+
+// ListMiningAddrs returns a list of all the currently active mining addresses.
+//
+// NOTE: This is a btcsuite extension.
+func (c *Client) ListMiningAddrs() ([]string, error) {
+	return c.ListMiningAddrsAsync().Receive()
 }
 
 // FutureGetBestBlockResult is a future promise to deliver the result of a
